@@ -2,19 +2,33 @@
 include 'db.php';
 session_start();
 
-if (isset($_POST['login'])) {
-    $nik = $_POST['nik'];
-    $nama = $_POST['nama'];
+$error = '';
 
-    $cek = mysqli_query($conn, "SELECT * FROM pembeli WHERE NIK='$nik' AND Nama='$nama'");
-    $data = mysqli_fetch_assoc($cek);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']); // bisa NIK (pembeli) atau username (admin)
+    $password = $_POST['password'];
 
-    if ($data) {
-        $_SESSION['user'] = $data;
-        header('Location: index.php');
-    } else {
-        $error = "Login gagal! Data tidak ditemukan.";
+    // Cek admin
+    $admin = mysqli_query($conn, "SELECT * FROM admin WHERE username = '$username'");
+    if ($row = mysqli_fetch_assoc($admin)) {
+        if (password_verify($password, $row['password'])) {
+            $_SESSION['user'] = ['role' => 'admin', 'data' => $row];
+            header('Location: admin_dashboard.php'); // atau index.php
+            exit;
+        }
     }
+
+    // Cek pembeli
+    $pembeli = mysqli_query($conn, "SELECT * FROM pembeli WHERE NIK = '$username'");
+    if ($row = mysqli_fetch_assoc($pembeli)) {
+        if (password_verify($password, $row['password'])) {
+            $_SESSION['user'] = ['role' => 'pembeli', 'data' => $row];
+            header('Location: index.php');
+            exit;
+        }
+    }
+
+    $error = "Username/NIK atau password salah!";
 }
 ?>
 <!DOCTYPE html>
@@ -33,18 +47,18 @@ if (isset($_POST['login'])) {
 <body>
   <div class="login-card">
     <h3 class="text-center text-primary fw-bold">Masuk ke KonserKu</h3>
-    <?php if(isset($error)): ?><div class="alert alert-danger"><?= $error ?></div><?php endif; ?>
+    <?php if(isset($error)): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
     <form method="post">
       <div class="mb-3">
-        <label>NIK</label>
-        <input type="text" name="nik" class="form-control" required>
+        <label>Username</label>
+        <input type="text" name="username" class="form-control" required>
       </div>
       <div class="mb-3">
-        <label>Nama</label>
-        <input type="text" name="nama" class="form-control" required>
+        <label>Password</label>
+        <input type="password" name="password" class="form-control" required>
       </div>
-      <button type="submit" name="login" class="btn btn-primary w-100">Masuk</button>
-      <p class="mt-3 text-center">Belum punya akun? <a href="register.php">Daftar</a></p>
+      <button type="submit" class="btn btn-primary w-100">Masuk</button>
+      <p class="mt-3 text-center">Belum punya akun? <a href="register.php">Daftar sebagai Pembeli</a></p>
     </form>
   </div>
 </body>
